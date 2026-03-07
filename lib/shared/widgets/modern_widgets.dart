@@ -27,7 +27,9 @@ class ModernButton extends StatelessWidget {
         onPressed: isLoading ? null : onPressed,
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
           side: BorderSide(
             color: AppTheme.primaryGradientStart.withValues(alpha: 0.6),
             width: 1.5,
@@ -42,7 +44,10 @@ class ModernButton extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: onPressed != null
             ? const LinearGradient(
-                colors: [AppTheme.primaryGradientStart, AppTheme.primaryGradientEnd],
+                colors: [
+                  AppTheme.primaryGradientStart,
+                  AppTheme.primaryGradientEnd,
+                ],
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
               )
@@ -89,7 +94,11 @@ class ModernButton extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (icon != null) ...[
-          Icon(icon, color: isOutlined ? AppTheme.primaryGradientStart : Colors.white, size: 20),
+          Icon(
+            icon,
+            color: isOutlined ? AppTheme.primaryGradientStart : Colors.white,
+            size: 20,
+          ),
           const SizedBox(width: 10),
         ],
         Text(
@@ -138,7 +147,7 @@ class ModernTextField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -172,11 +181,19 @@ class ModernTextField extends StatelessWidget {
                     child: Icon(prefixIcon, size: 22, color: Colors.grey[500]),
                   )
                 : null,
-            prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+            prefixIconConstraints: const BoxConstraints(
+              minWidth: 0,
+              minHeight: 0,
+            ),
             suffixIcon: suffixIcon,
             filled: true,
-            fillColor: isDark ? const Color(0xFF2D3748) : const Color(0xFFF7FAFC),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+            fillColor: isDark
+                ? const Color(0xFF2D3748)
+                : const Color(0xFFF7FAFC),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 18,
+              vertical: 16,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide(color: Colors.grey[300]!),
@@ -187,15 +204,24 @@ class ModernTextField extends StatelessWidget {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppTheme.primaryGradientStart, width: 2),
+              borderSide: const BorderSide(
+                color: AppTheme.primaryGradientStart,
+                width: 2,
+              ),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppTheme.dangerColor, width: 1.5),
+              borderSide: const BorderSide(
+                color: AppTheme.dangerColor,
+                width: 1.5,
+              ),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppTheme.dangerColor, width: 2),
+              borderSide: const BorderSide(
+                color: AppTheme.dangerColor,
+                width: 2,
+              ),
             ),
           ),
         ),
@@ -206,11 +232,7 @@ class ModernTextField extends StatelessWidget {
 
 /// Glassmorphism card for balance display
 class GlassCard extends StatelessWidget {
-  const GlassCard({
-    super.key,
-    required this.child,
-    this.padding,
-  });
+  const GlassCard({super.key, required this.child, this.padding});
 
   final Widget child;
   final EdgeInsets? padding;
@@ -218,7 +240,7 @@ class GlassCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -279,7 +301,7 @@ class StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -312,9 +334,14 @@ class StatCard extends StatelessWidget {
               ),
               if (trend != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: trend! >= 0 ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
+                    color: trend! >= 0
+                        ? Colors.green.withValues(alpha: 0.1)
+                        : Colors.red.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -362,10 +389,7 @@ class StatCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               subtitle!,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[500],
-              ),
+              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
             ),
           ],
         ],
@@ -402,7 +426,7 @@ class TransactionCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currencyFormat = NumberFormat('#,###');
     final dateFormat = DateFormat('dd MMM');
-    
+
     return Dismissible(
       key: Key(title + date.toString()),
       direction: DismissDirection.endToStart,
@@ -452,7 +476,7 @@ class TransactionCard extends StatelessWidget {
                     child: Icon(icon, color: color, size: 26),
                   ),
                   const SizedBox(width: 14),
-                  
+
                   // Content
                   Expanded(
                     child: Column(
@@ -463,7 +487,9 @@ class TransactionCard extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
-                            color: isDark ? Colors.white : const Color(0xFF1F2937),
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF1F2937),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -473,7 +499,10 @@ class TransactionCard extends StatelessWidget {
                           children: [
                             if (category != null) ...[
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: color.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(6),
@@ -501,7 +530,7 @@ class TransactionCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  
+
                   // Amount
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
@@ -578,10 +607,7 @@ class EmptyState extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 subtitle!,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF9CA3AF),
-                ),
+                style: const TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -654,7 +680,8 @@ class ShimmerLoading extends StatefulWidget {
   State<ShimmerLoading> createState() => _ShimmerLoadingState();
 }
 
-class _ShimmerLoadingState extends State<ShimmerLoading> with SingleTickerProviderStateMixin {
+class _ShimmerLoadingState extends State<ShimmerLoading>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
 
@@ -687,11 +714,7 @@ class _ShimmerLoadingState extends State<ShimmerLoading> with SingleTickerProvid
             gradient: LinearGradient(
               begin: Alignment(_animation.value - 1, 0),
               end: Alignment(_animation.value + 1, 0),
-              colors: [
-                Colors.grey[300]!,
-                Colors.grey[100]!,
-                Colors.grey[300]!,
-              ],
+              colors: [Colors.grey[300]!, Colors.grey[100]!, Colors.grey[300]!],
             ),
           ),
         );
@@ -715,7 +738,12 @@ class UserAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initials = name.split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join().toUpperCase();
+    final initials = name
+        .split(' ')
+        .map((e) => e.isNotEmpty ? e[0] : '')
+        .take(2)
+        .join()
+        .toUpperCase();
     final colors = [
       AppTheme.primaryGradientStart,
       AppTheme.primaryGradientEnd,
@@ -724,7 +752,7 @@ class UserAvatar extends StatelessWidget {
       Colors.orange,
     ];
     final colorIndex = name.hashCode % colors.length;
-    
+
     return Container(
       width: size,
       height: size,
@@ -738,6 +766,7 @@ class UserAvatar extends StatelessWidget {
           ],
         ),
         borderRadius: BorderRadius.circular(size / 3),
+        border: Border.all(color: Colors.white, width: 2),
         boxShadow: [
           BoxShadow(
             color: colors[colorIndex.abs()].withValues(alpha: 0.3),
@@ -759,4 +788,3 @@ class UserAvatar extends StatelessWidget {
     );
   }
 }
-

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../transaction_controller.dart';
 import '../../../shared/widgets/premium_page.dart';
 import '../domain/transaction_models.dart';
+import '../../../shared/widgets/modern_widgets.dart';
 
 class TransactionsScreen extends ConsumerWidget {
   const TransactionsScreen({super.key});
@@ -225,6 +226,7 @@ class _TransactionCard extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.onDelete,
+    required this.isExpense,
   });
 
   final String title;
@@ -233,48 +235,79 @@ class _TransactionCard extends StatelessWidget {
   final String note;
   final IconData icon;
   final Color color;
+  final bool isExpense;
   final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: color),
+    final currencyFormat = NumberFormat('#,###');
+    final dateFormat = DateFormat('dd/MM/yyyy');
+    return Dismissible(
+      key: Key(title + date.toString()),
+      direction: DismissDirection.endToStart,
+      onDismissed: (_) => onDelete(),
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        decoration: BoxDecoration(
+          color: Colors.red[400],
+          borderRadius: BorderRadius.circular(16),
         ),
-        title: Text(
-          title,
-          style: Theme.of(
-            context,
-          ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Text(
-          DateFormat('dd/MM/yyyy').format(date),
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        trailing: PopupMenuButton(
-          itemBuilder: (context) => [
-            PopupMenuItem(onTap: onDelete, child: const Text('Xóa')),
-          ],
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '${amount.toStringAsFixed(0)}đ',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.bold,
+        child: const Icon(Icons.delete_outline, color: Colors.white, size: 28),
+      ),
+      child: GlassCard(
+        child: InkWell(
+          onTap: () {},
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, color: color, size: 26),
                 ),
-              ),
-              Icon(Icons.more_vert, color: Colors.grey[400], size: 16),
-            ],
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        dateFormat.format(date),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '${isExpense ? '-' : '+'}${currencyFormat.format(amount.abs())}đ',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: color,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Icon(Icons.more_vert, color: Colors.grey[400], size: 16),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -456,6 +489,7 @@ class _ExpenseList extends StatelessWidget {
             icon: categoryMap[expense.category] ?? Icons.category,
             color: Colors.red,
             onDelete: () => onDelete(expense.id),
+            isExpense: true,
           );
         },
       ),
@@ -505,6 +539,7 @@ class _IncomeList extends StatelessWidget {
           icon: sourceMap[income.source] ?? Icons.attach_money,
           color: Colors.green,
           onDelete: () => onDelete(income.id),
+          isExpense: false,
         );
       },
     );

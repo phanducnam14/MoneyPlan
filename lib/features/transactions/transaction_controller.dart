@@ -3,6 +3,8 @@ import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import './domain/transaction_models.dart';
+import '../../storage/per_user_storage.dart';
+import '../auth/presentation/auth_controller.dart';
 
 enum DateFilter { all, today, last7Days, last30Days, thisMonth }
 
@@ -115,36 +117,28 @@ class TransactionsState {
 
 final transactionsProvider =
     StateNotifierProvider<TransactionsController, TransactionsState>(
-      (ref) => TransactionsController()..seed(),
+      (ref) => TransactionsController(ref)..seed(),
     );
 
 class TransactionsController extends StateNotifier<TransactionsState> {
-  TransactionsController() : super(const TransactionsState());
+  TransactionsController(this._ref) : super(const TransactionsState());
+  final Ref _ref;
+  final PerUserStorage _storage = PerUserStorage();
 
   Future<void> seed() async {
+    // Load per-user data if a user is logged in
+    final appUser = _ref.read(authControllerProvider).user;
+    if (appUser == null || appUser.id.isEmpty) {
+      // No user logged in yet; keep empty state for now
+      state = state.copyWith(isLoading: false);
+      return;
+    }
+    final userId = appUser.id;
     state = state.copyWith(isLoading: true);
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    final now = DateTime.now();
-    final expenses = List.generate(
-      8,
-      (index) => Expense(
-        id: 'e$index',
-        amount: 100000 + index * 25000,
-        category: ['Ăn uống', 'Nhà ở', 'Di chuyển', 'Giải trí'][index % 4],
-        date: now.subtract(Duration(days: index)),
-        note: 'Chi tiêu mẫu #$index',
-      ),
-    );
-    final incomes = List.generate(
-      5,
-      (index) => Income(
-        id: 'i$index',
-        amount: 500000 + index * 150000,
-        source: ['Lương', 'Freelance', 'Đầu tư'][index % 3],
-        date: now.subtract(Duration(days: index * 2)),
-        note: 'Thu nhập mẫu #$index',
-      ),
-    );
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+
+    final expenses = await _storage.loadExpenses(userId);
+    final incomes = await _storage.loadIncomes(userId);
     state = state.copyWith(
       expenses: expenses,
       incomes: incomes,
@@ -152,7 +146,27 @@ class TransactionsController extends StateNotifier<TransactionsState> {
     );
   }
 
-  Future<void> refreshData() async => seed();
+  Future<void> _saveAll(String userId) async {
+    await _storage.saveExpenses(userId, state.expenses);
+    await _storage.saveIncomes(userId, state.incomes);
+  }
+
+  Future<void> refreshData() async {
+    await seed();
+  }
+
+  Future<void> loadForCurrentUser() async {
+    final appUser = _ref.read(authControllerProvider).user;
+    if (appUser == null) return;
+    final userId = appUser.id;
+    final expenses = await _storage.loadExpenses(userId);
+    final incomes = await _storage.loadIncomes(userId);
+    state = state.copyWith(
+      expenses: expenses,
+      incomes: incomes,
+      isLoading: false,
+    );
+  }
 
   Future<void> loadMoreExpenses() async {
     final random = Random();
@@ -176,22 +190,30 @@ class TransactionsController extends StateNotifier<TransactionsState> {
     );
   }
 
-  void addExpense(Expense expense) =>
-      state = state.copyWith(expenses: [expense, ...state.expenses]);
+  void addExpense(Expense expense) {
+    final newList = [expense, ...state.expenses];
+    state = state.copyWith(expenses: newList);
+    _persistCurrentUser();
+  }
 
-  void addIncome(Income income) =>
-      state = state.copyWith(incomes: [income, ...state.incomes]);
+  void addIncome(Income income) {
+    final newList = [income, ...state.incomes];
+    state = state.copyWith(incomes: newList);
+    _persistCurrentUser();
+  }
 
   void deleteExpense(String id) {
     state = state.copyWith(
       expenses: state.expenses.where((e) => e.id != id).toList(),
     );
+    _persistCurrentUser();
   }
 
   void deleteIncome(String id) {
     state = state.copyWith(
       incomes: state.incomes.where((i) => i.id != id).toList(),
     );
+    _persistCurrentUser();
   }
 
   void setDateFilter(DateFilter filter) {
@@ -206,5 +228,12 @@ class TransactionsController extends StateNotifier<TransactionsState> {
       page: 1,
       dateFilter: DateFilter.all,
     );
+    await _saveAll(_ref.read(authControllerProvider).user?.id ?? '');
+  }
+
+  Future<void> _persistCurrentUser() async {
+    final user = _ref.read(authControllerProvider).user;
+    if (user == null) return;
+    await _saveAll(user.id);
   }
 }

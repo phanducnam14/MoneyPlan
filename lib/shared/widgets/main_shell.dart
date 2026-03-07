@@ -25,7 +25,7 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // Removed unused local isDark to satisfy lint; inline brightness checks below
 
     return Scaffold(
       body: AnimatedSwitcher(
@@ -37,10 +37,21 @@ class _MainShellState extends State<MainShell> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          gradient: LinearGradient(
+            colors: [
+              AppTheme.primaryGradientStart,
+              AppTheme.primaryGradientEnd,
+            ],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 16,
               offset: const Offset(0, -4),
             ),
@@ -52,9 +63,24 @@ class _MainShellState extends State<MainShell> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildNavItem(0, Icons.dashboard_outlined, Icons.dashboard, 'Dashboard'),
-                _buildNavItem(1, Icons.receipt_long_outlined, Icons.receipt_long, 'Giao dich'),
-                _buildNavItem(2, Icons.query_stats_outlined, Icons.query_stats, 'Thong ke'),
+                _buildNavItem(
+                  0,
+                  Icons.dashboard_outlined,
+                  Icons.dashboard,
+                  'Dashboard',
+                ),
+                _buildNavItem(
+                  1,
+                  Icons.receipt_long_outlined,
+                  Icons.receipt_long,
+                  'Giao dich',
+                ),
+                _buildNavItem(
+                  2,
+                  Icons.query_stats_outlined,
+                  Icons.query_stats,
+                  'Thong ke',
+                ),
                 _buildNavItem(3, Icons.person_outline, Icons.person, 'Ho so'),
               ],
             ),
@@ -64,9 +90,13 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon, IconData activeIcon, String label) {
+  Widget _buildNavItem(
+    int index,
+    IconData icon,
+    IconData activeIcon,
+    String label,
+  ) {
     final isSelected = _index == index;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return InkWell(
       onTap: () => setState(() => _index = index),
@@ -79,7 +109,11 @@ class _MainShellState extends State<MainShell> {
         ),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppTheme.primaryGradientStart.withValues(alpha: isDark ? 0.2 : 0.1)
+              ? AppTheme.primaryGradientStart.withValues(
+                  alpha: (Theme.of(context).brightness == Brightness.dark)
+                      ? 0.2
+                      : 0.1,
+                )
               : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
         ),
@@ -90,7 +124,9 @@ class _MainShellState extends State<MainShell> {
               isSelected ? activeIcon : icon,
               color: isSelected
                   ? AppTheme.primaryGradientStart
-                  : (isDark ? Colors.grey[500] : Colors.grey[600]),
+                  : (Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey[500]
+                        : Colors.grey[600]),
               size: 24,
             ),
             if (isSelected) ...[
@@ -110,4 +146,3 @@ class _MainShellState extends State<MainShell> {
     );
   }
 }
-

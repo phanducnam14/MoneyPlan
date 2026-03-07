@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 
 import '../../../core/network/dio_provider.dart';
+import '../../transactions/transaction_controller.dart';
 import '../../../core/storage/secure_storage_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/auth_repository.dart';
@@ -78,6 +79,20 @@ class AuthController extends StateNotifier<AuthState> {
         isAuthenticated: true,
         user: user,
       );
+      // Load per-user data for transactions after login
+      try {
+        _ref.read(transactionsProvider.notifier).loadForCurrentUser();
+      } catch (e) {
+        // ignore load errors during login
+      }
+      // Persist current userId for per-user storage
+      try {
+        await _ref.read(secureStorageServiceProvider).saveUserId(user.id);
+      } catch (_) {}
+      // Persist current userId for per-user storage
+      try {
+        await _ref.read(secureStorageServiceProvider).saveUserId(user.id);
+      } catch (_) {}
     } catch (e) {
       String errorMsg = 'Đăng nhập thất bại.';
       if (e is DioException) {
