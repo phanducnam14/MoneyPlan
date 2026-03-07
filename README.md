@@ -1,6 +1,4 @@
-# flutter_app_200226
-
-A new Flutter project.
+# flutter_app_200226 (final)
 
 ## Getting Started
 
