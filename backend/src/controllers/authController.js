@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Expense = require('../models/Expense');
 const Income = require('../models/Income');
+const Category = require('../models/Category');
 const mongoose = require('mongoose');
 
 const register = async (req, res) => {
@@ -19,6 +20,14 @@ const register = async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 10);
     const user = await User.create({ name, email, password: hashed, dateOfBirth, gender });
+    
+    // Create default categories for new user
+    try {
+      await Category.createDefaultsForUser(user._id);
+    } catch (catError) {
+      console.error('Error creating default categories:', catError);
+      // Continue even if categories fail - user can initialize later
+    }
     
     // Auto-login after successful registration
     // NOTE: New user starts with EMPTY financial data (no expenses/incomes inherited)

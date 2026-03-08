@@ -67,7 +67,7 @@ class TransactionsScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _showAddDialog(
+  static Future<void> _showAddDialog(
     BuildContext context,
     TransactionsController controller,
   ) async {
@@ -132,7 +132,6 @@ class TransactionsScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    // Category/Source dropdown
                     DropdownButtonFormField<String>(
                       items: options
                           .map(
@@ -152,7 +151,6 @@ class TransactionsScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    // Date picker
                     ListTile(
                       title: const Text('Ngày giao dịch'),
                       subtitle: Text(
@@ -545,3 +543,4 @@ class _IncomeList extends StatelessWidget {
     );
   }
 }
+

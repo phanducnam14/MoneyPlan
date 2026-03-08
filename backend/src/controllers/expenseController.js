@@ -33,7 +33,7 @@ const getExpenses = async (req, res) => {
 
 const createExpense = async (req, res) => {
   try {
-    const { amount, category, date, note } = req.body;
+    const { amount, category, date, note, walletId } = req.body;
     
     // Validate required fields
     if (!amount || !category || !date) {
@@ -48,7 +48,8 @@ const createExpense = async (req, res) => {
       amount: Number(amount),
       category,
       date: new Date(date),
-      note: note || ''
+      note: note || '',
+      walletId: walletId ? new mongoose.Types.ObjectId(walletId) : undefined
     });
     
     res.status(201).json(expense);

@@ -6,7 +6,8 @@ const incomeSchema = new mongoose.Schema(
     amount: { type: Number, required: true },
     source: { type: String, required: true },
     note: String,
-    date: { type: Date, required: true }
+    date: { type: Date, required: true },
+    walletId: { type: mongoose.Schema.Types.ObjectId, ref: 'Wallet' }
   },
   { timestamps: true }
 );

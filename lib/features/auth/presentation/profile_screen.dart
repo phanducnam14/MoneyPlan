@@ -3,7 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/modern_widgets.dart';
+import '../../../../shared/widgets/wallet_summary_widget.dart';
+import '../../../../shared/widgets/budget_summary_widget.dart';
 import '../../admin/presentation/admin_screen.dart';
+import '../../wallets/presentation/wallet_screen.dart';
+import '../../goals/presentation/goal_screen.dart';
+import '../../recurring/presentation/recurring_screen.dart';
+import '../../categories/presentation/category_screen.dart';
+import '../../budget/presentation/budget_screen.dart';
 import './auth_controller.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -170,6 +177,17 @@ class ProfileScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 24),
+                    // Wallet Summary
+                    WalletSummaryWidget(
+                      showAllButton: true,
+                      onViewAll: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WalletScreen())),
+                    ),
+                    // Budget Summary
+                    BudgetSummaryWidget(
+                      showAllButton: true,
+                      onViewAll: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BudgetScreen())),
+                    ),
+                    const SizedBox(height: 24),
                     _buildSectionTitle('Cai dat'),
                     const SizedBox(height: 12),
                     _buildSettingsCard(context, isDark, [
@@ -181,6 +199,16 @@ class ProfileScreen extends ConsumerWidget {
                     _buildSettingsCard(context, isDark, [
                       _SettingsTile(icon: Icons.lock_outline, title: 'Doi mat khau', subtitle: 'Cap nhap mat khau dang nhap', onTap: () => _showChangePasswordDialog(context, ref)),
                       _SettingsTile(icon: Icons.mail_outline, title: 'Thay doi email', subtitle: 'Cap nhat dia chi email', onTap: () => _showChangeEmailDialog(context, ref)),
+                    ]),
+                    const SizedBox(height: 20),
+                    _buildSectionTitle('Tinh nang'),
+                    const SizedBox(height: 12),
+                    _buildSettingsCard(context, isDark, [
+                      _SettingsTile(icon: Icons.account_balance_wallet, title: 'Vi tien', subtitle: 'Quan ly vi tien cua ban', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WalletScreen()))),
+                      _SettingsTile(icon: Icons.savings, title: 'Muc tieu', subtitle: 'Dat va theo doi muc tieu', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GoalScreen()))),
+                      _SettingsTile(icon: Icons.repeat, title: 'Giao dich dinh ky', subtitle: 'Thu chi tu dong', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RecurringScreen()))),
+                      _SettingsTile(icon: Icons.category, title: 'Danh muc', subtitle: 'Quan ly danh muc chi tieu', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CategoryScreen()))),
+                      _SettingsTile(icon: Icons.account_balance, title: 'Ngan sach', subtitle: 'Thiet lap va theo doi ngansach', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BudgetScreen()))),
                     ]),
                     if (isAdmin) ...[
                       const SizedBox(height: 20),

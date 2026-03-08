@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/modern_widgets.dart';
+import '../../../shared/widgets/wallet_summary_widget.dart';
+import '../../../shared/widgets/budget_summary_widget.dart';
 import '../../transactions/transaction_controller.dart';
 import 'auth_controller.dart';
 
@@ -116,6 +118,26 @@ class DashboardScreen extends ConsumerWidget {
                     state.balance,
                     state.totalIncome,
                     state.totalExpense,
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: WalletSummaryWidget(
+                    onViewAll: () {
+                      // Navigate to wallets screen
+                    },
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: BudgetSummaryWidget(
+                    onViewAll: () {
+                      // Navigate to budget screen
+                    },
                   ),
                 ),
               ),
@@ -714,3 +736,5 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 }
+
+

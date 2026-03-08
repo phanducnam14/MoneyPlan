@@ -33,7 +33,7 @@ const getIncomes = async (req, res) => {
 
 const createIncome = async (req, res) => {
   try {
-    const { amount, source, date, note } = req.body;
+    const { amount, source, date, note, walletId } = req.body;
     
     // Validate required fields
     if (!amount || !source || !date) {
@@ -48,7 +48,8 @@ const createIncome = async (req, res) => {
       amount: Number(amount),
       source,
       date: new Date(date),
-      note: note || ''
+      note: note || '',
+      walletId: walletId ? new mongoose.Types.ObjectId(walletId) : undefined
     });
     
     res.status(201).json(income);
