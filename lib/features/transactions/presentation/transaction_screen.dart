@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../transaction_controller.dart';
+import '../../wallets/presentation/wallet_screen.dart';
 import '../../../shared/widgets/premium_page.dart';
 import '../domain/transaction_models.dart';
 import '../../../shared/widgets/modern_widgets.dart';
@@ -14,6 +15,7 @@ class TransactionsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(transactionsProvider);
     final controller = ref.read(transactionsProvider.notifier);
+    final walletsAsync = ref.watch(walletsProvider);
 
     return DefaultTabController(
       length: 2,
@@ -29,7 +31,13 @@ class TransactionsScreen extends ConsumerWidget {
           ),
         ),
         floatingActionButton: FloatingActionButton.extended(
-          onPressed: () => _showAddDialog(context, controller),
+          onPressed: () {
+            final wallets = walletsAsync.maybeWhen(
+              data: (data) => data,
+              orElse: () => [],
+            );
+            _showAddDialogWithWallets(context, controller, wallets);
+          },
           icon: const Icon(Icons.add),
           label: const Text('Thêm giao dịch'),
         ),
@@ -67,14 +75,18 @@ class TransactionsScreen extends ConsumerWidget {
     );
   }
 
-  static Future<void> _showAddDialog(
+  static Future<void> _showAddDialogWithWallets(
     BuildContext context,
     TransactionsController controller,
+    List<dynamic> wallets,
   ) async {
     final amountController = TextEditingController();
     final descController = TextEditingController();
     var isExpense = true;
     var selectedDate = DateTime.now();
+    String? selectedWalletId;
+    String? selectedWalletName;
+    var useWalletAsSource = false;
 
     await showDialog<void>(
       context: context,
@@ -113,8 +125,12 @@ class TransactionsScreen extends ConsumerWidget {
                       ],
                       selected: {isExpense},
                       onSelectionChanged: (Set<bool> newSelection) {
-                        setState(() => isExpense = newSelection.first);
-                        descController.clear();
+                        setState(() {
+                          isExpense = newSelection.first;
+                          descController.clear();
+                          selectedWalletId = null;
+                          selectedWalletName = null;
+                        });
                       },
                     ),
                     const SizedBox(height: 16),
@@ -132,6 +148,63 @@ class TransactionsScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
+                    // Show wallet/income source selector only for expenses
+                    if (isExpense) ...[
+                      SegmentedButton<bool>(
+                        segments: [
+                          ButtonSegment(
+                            value: false,
+                            label: const Text('Thu nhập'),
+                            icon: const Icon(Icons.account_balance),
+                          ),
+                          ButtonSegment(
+                            value: true,
+                            label: const Text('Ví'),
+                            icon: const Icon(Icons.wallet),
+                          ),
+                        ],
+                        selected: {useWalletAsSource},
+                        onSelectionChanged: (Set<bool> newSelection) {
+                          setState(() {
+                            useWalletAsSource = newSelection.first;
+                            selectedWalletId = null;
+                            selectedWalletName = null;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      // Wallet picker if "Ví" is selected
+                      if (useWalletAsSource && wallets.isNotEmpty)
+                        DropdownButtonFormField<String>(
+                          initialValue: selectedWalletId,
+                          items: wallets
+                              .map(
+                                (wallet) => DropdownMenuItem(
+                                  value: wallet.id.toString(),
+                                  child: Text(wallet.name.toString()),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            final selected = wallets.firstWhere(
+                              (w) => w.id.toString() == value,
+                              orElse: () => wallets.first,
+                            );
+                            setState(() {
+                              selectedWalletId = value;
+                              selectedWalletName = selected.name.toString();
+                            });
+                          },
+                          decoration: InputDecoration(
+                            labelText: 'Chọn ví',
+                            prefixIcon: const Icon(Icons.wallet),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 12),
+                    ],
                     DropdownButtonFormField<String>(
                       items: options
                           .map(
@@ -185,6 +258,16 @@ class TransactionsScreen extends ConsumerWidget {
                 final desc = descController.text.trim();
                 if (amount <= 0 || desc.isEmpty) return;
 
+                // For expenses with wallet source, check wallet is selected
+                if (isExpense &&
+                    useWalletAsSource &&
+                    selectedWalletId == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Vui lòng chọn ví')),
+                  );
+                  return;
+                }
+
                 if (isExpense) {
                   controller.addExpense(
                     Expense(
@@ -192,12 +275,20 @@ class TransactionsScreen extends ConsumerWidget {
                       amount: amount,
                       category: desc,
                       date: selectedDate,
+                      sourceType:
+                          useWalletAsSource ? 'wallet' : 'income',
+                      sourceWalletId:
+                          useWalletAsSource ? selectedWalletId : null,
+                      sourceWalletName:
+                          useWalletAsSource ? selectedWalletName : null,
                     ),
                   );
                 } else {
                   controller.addIncome(
                     Income(
-                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      id: DateTime.now()
+                          .millisecondsSinceEpoch
+                          .toString(),
                       amount: amount,
                       source: desc,
                       date: selectedDate,
@@ -225,6 +316,8 @@ class _TransactionCard extends StatelessWidget {
     required this.color,
     required this.onDelete,
     required this.isExpense,
+    this.sourceType = 'income',
+    this.sourceWalletName,
   });
 
   final String title;
@@ -235,11 +328,19 @@ class _TransactionCard extends StatelessWidget {
   final Color color;
   final bool isExpense;
   final VoidCallback onDelete;
+  final String sourceType; // 'income' or 'wallet'
+  final String? sourceWalletName; // Name of wallet if sourceType is 'wallet'
 
   @override
   Widget build(BuildContext context) {
     final currencyFormat = NumberFormat('#,###');
     final dateFormat = DateFormat('dd/MM/yyyy');
+
+    // Determine source label
+    final sourceLabel = sourceType == 'wallet'
+        ? 'Ví: $sourceWalletName'
+        : 'Thu nhập';
+
     return Dismissible(
       key: Key(title + date.toString()),
       direction: DismissDirection.endToStart,
@@ -282,6 +383,16 @@ class _TransactionCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 4),
+                      // Show source for expenses
+                      if (isExpense)
+                        Text(
+                          'Từ: $sourceLabel',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      // Show date
                       Text(
                         dateFormat.format(date),
                         style: Theme.of(context).textTheme.bodySmall,
@@ -488,6 +599,8 @@ class _ExpenseList extends StatelessWidget {
             color: Colors.red,
             onDelete: () => onDelete(expense.id),
             isExpense: true,
+            sourceType: expense.sourceType,
+            sourceWalletName: expense.sourceWalletName,
           );
         },
       ),
