@@ -1,4 +1,5 @@
 const Wallet = require('../models/Wallet');
+const WalletService = require('../services/walletService');
 const Expense = require('../models/Expense');
 const Income = require('../models/Income');
 const mongoose = require('mongoose');
@@ -6,35 +7,9 @@ const mongoose = require('mongoose');
 // Get all wallets for current user
 const getWallets = async (req, res) => {
   try {
-    const userId = new mongoose.Types.ObjectId(req.user.id);
-    
-    const wallets = await Wallet.find({ userId }).sort({ isDefault: -1, name: 1 });
-    
-    // Calculate actual balance for each wallet based on transactions
-    const walletBalances = await Promise.all(wallets.map(async (wallet) => {
-      const [expenses, incomes] = await Promise.all([
-        Expense.aggregate([
-          { $match: { userId, walletId: wallet._id } },
-          { $group: { _id: null, total: { $sum: '$amount' } } }
-        ]),
-        Income.aggregate([
-          { $match: { userId, walletId: wallet._id } },
-          { $group: { _id: null, total: { $sum: '$amount' } } }
-        ])
-      ]);
-      
-      const totalExpenses = expenses[0]?.total || 0;
-      const totalIncomes = incomes[0]?.total || 0;
-      
-      return {
-        ...wallet.toObject(),
-        actualBalance: wallet.balance + totalIncomes - totalExpenses,
-        totalIncome: totalIncomes,
-        totalExpense: totalExpenses
-      };
-    }));
-    
-    res.json({ data: walletBalances });
+    const userId = req.user.id;
+    const wallets = await WalletService.getUserWallets(userId);
+    res.json({ data: wallets });
   } catch (error) {
     console.error('Get wallets error:', error);
     res.status(500).json({ message: 'Error fetching wallets', error: error.message });
@@ -46,16 +21,16 @@ const createWallet = async (req, res) => {
   try {
     const userId = new mongoose.Types.ObjectId(req.user.id);
     const { name, balance, icon, color, type, isDefault } = req.body;
-    
+
     if (!name) {
       return res.status(400).json({ message: 'Wallet name is required' });
     }
-    
+
     const exists = await Wallet.findOne({ userId, name });
     if (exists) {
       return res.status(400).json({ message: 'Wallet with this name already exists' });
     }
-    
+
     const wallet = await Wallet.create({
       userId,
       name,
@@ -65,7 +40,7 @@ const createWallet = async (req, res) => {
       type: type || 'cash',
       isDefault: isDefault || false
     });
-    
+
     res.status(201).json(wallet);
   } catch (error) {
     console.error('Create wallet error:', error);
@@ -78,21 +53,21 @@ const updateWallet = async (req, res) => {
   try {
     const userId = new mongoose.Types.ObjectId(req.user.id);
     const walletId = new mongoose.Types.ObjectId(req.params.id);
-    
-    const { name, balance, icon, color, type, isDefault } = req.body;
-    
+
+    const { name, icon, color, type, isDefault } = req.body;
+
     const wallet = await Wallet.findOne({ _id: walletId, userId });
     if (!wallet) {
       return res.status(404).json({ message: 'Wallet not found or access denied' });
     }
-    
+
+    // Allow updating these fields only (NOT balance - balance is updated via transactions)
     if (name) wallet.name = name;
-    if (balance !== undefined) wallet.balance = balance;
     if (icon) wallet.icon = icon;
     if (color) wallet.color = color;
     if (type) wallet.type = type;
     if (isDefault !== undefined) wallet.isDefault = isDefault;
-    
+
     await wallet.save();
     res.json(wallet);
   } catch (error) {
@@ -106,23 +81,23 @@ const deleteWallet = async (req, res) => {
   try {
     const userId = new mongoose.Types.ObjectId(req.user.id);
     const walletId = new mongoose.Types.ObjectId(req.params.id);
-    
+
     const wallet = await Wallet.findOne({ _id: walletId, userId });
     if (!wallet) {
       return res.status(404).json({ message: 'Wallet not found or access denied' });
     }
-    
+
     const [expenseCount, incomeCount] = await Promise.all([
       Expense.countDocuments({ userId, walletId }),
       Income.countDocuments({ userId, walletId })
     ]);
-    
+
     if (expenseCount > 0 || incomeCount > 0) {
-      return res.status(400).json({ 
-        message: 'Cannot delete wallet with transactions' 
+      return res.status(400).json({
+        message: 'Cannot delete wallet with transactions'
       });
     }
-    
+
     await Wallet.deleteOne({ _id: walletId });
     res.status(204).send();
   } catch (error) {
@@ -131,28 +106,35 @@ const deleteWallet = async (req, res) => {
   }
 };
 
-// Get single wallet details
+// Get single wallet details with recent transactions
 const getWalletById = async (req, res) => {
   try {
     const userId = new mongoose.Types.ObjectId(req.user.id);
     const walletId = new mongoose.Types.ObjectId(req.params.id);
-    
+
     const wallet = await Wallet.findOne({ _id: walletId, userId });
     if (!wallet) {
       return res.status(404).json({ message: 'Wallet not found' });
     }
-    
+
+    // Calculate balance
+    const balance = await WalletService.calculateWalletBalance(walletId, userId);
+
     const [recentExpenses, recentIncomes] = await Promise.all([
       Expense.find({ userId, walletId }).sort({ date: -1 }).limit(10),
       Income.find({ userId, walletId }).sort({ date: -1 }).limit(10)
     ]);
-    
+
     res.json({
       ...wallet.toObject(),
+      actualBalance: balance,
+      displayBalance: balance,
       recentTransactions: [
         ...recentExpenses.map(e => ({ ...e.toObject(), type: 'expense' })),
         ...recentIncomes.map(i => ({ ...i.toObject(), type: 'income' }))
-      ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 10)
+      ]
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, 10)
     });
   } catch (error) {
     console.error('Get wallet error:', error);

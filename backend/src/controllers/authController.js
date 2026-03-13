@@ -4,6 +4,7 @@ const User = require('../models/User');
 const Expense = require('../models/Expense');
 const Income = require('../models/Income');
 const Category = require('../models/Category');
+const WalletService = require('../services/walletService');
 const mongoose = require('mongoose');
 
 const register = async (req, res) => {
@@ -20,7 +21,7 @@ const register = async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 10);
     const user = await User.create({ name, email, password: hashed, dateOfBirth, gender });
-    
+
     // Create default categories for new user
     try {
       await Category.createDefaultsForUser(user._id);
@@ -28,12 +29,19 @@ const register = async (req, res) => {
       console.error('Error creating default categories:', catError);
       // Continue even if categories fail - user can initialize later
     }
-    
+
+    // Create default wallet for new user
+    try {
+      await WalletService.createDefaultWallet(user._id);
+    } catch (walletError) {
+      console.error('Error creating default wallet:', walletError);
+      // Continue to user creation but log error
+    }
+
     // Auto-login after successful registration
-    // NOTE: New user starts with EMPTY financial data (no expenses/incomes inherited)
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET || 'secret_key', { expiresIn: '7d' });
-    res.status(201).json({ 
-      token, 
+    res.status(201).json({
+      token,
       user: {
         _id: user._id,
         id: user._id,

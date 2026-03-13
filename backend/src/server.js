@@ -14,6 +14,7 @@ const searchRoutes = require('./routes/searchRoutes');
 const walletRoutes = require('./routes/walletRoutes');
 const recurringRoutes = require('./routes/recurringRoutes');
 const goalRoutes = require('./routes/goalRoutes');
+const transactionRoutes = require('./routes/transactionRoutes');
 const swaggerSpec = require('./swagger');
 
 const app = express();
@@ -33,6 +34,7 @@ app.use('/search', searchRoutes);
 app.use('/wallets', walletRoutes);
 app.use('/recurring', recurringRoutes);
 app.use('/goals', goalRoutes);
+app.use('/transactions', transactionRoutes);
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));

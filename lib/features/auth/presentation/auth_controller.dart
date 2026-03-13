@@ -4,6 +4,8 @@ import 'package:dio/dio.dart';
 
 import '../../../core/network/dio_provider.dart';
 import '../../transactions/transaction_controller.dart';
+import '../../wallets/presentation/wallet_screen.dart';
+import '../../../shared/widgets/wallet_summary_widget.dart';
 import '../../../core/storage/secure_storage_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/auth_repository.dart';
@@ -53,17 +55,35 @@ class AuthController extends StateNotifier<AuthState> {
   final Ref _ref;
 
   Future<void> tryAutoLogin() async {
-    final token = await _ref.read(secureStorageServiceProvider).readToken();
-    if (token != null && token.isNotEmpty) {
-      state = state.copyWith(
-        isAuthenticated: true,
-        user: const AppUser(
-          id: 'cached',
-          name: 'User',
-          email: 'cached@user.app',
-          role: 'user',
-        ),
-      );
+    try {
+      // Get token from secure storage
+      final token = await _ref.read(secureStorageServiceProvider).readToken();
+      if (token != null && token.isNotEmpty) {
+        // Get the real user ID from secure storage
+        final userId = await _ref.read(secureStorageServiceProvider).readUserId();
+
+        // Check if we have a valid user ID (not the hardcoded 'cached' value)
+        if (userId != null && userId.isNotEmpty && userId != 'cached') {
+          state = state.copyWith(
+            isAuthenticated: true,
+            user: AppUser(
+              id: userId, // Use REAL user ID from storage
+              name: 'User',
+              email: 'email@user.app',
+              role: 'user',
+            ),
+          );
+          // Reload transactions for the correct user
+          try {
+            _ref.read(transactionsProvider.notifier).loadForCurrentUser();
+          } catch (e) {
+            debugPrint('Error loading transactions on auto-login: $e');
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Auto-login error: $e');
+      // Continue without auto-login if there's an error
     }
   }
 
@@ -74,25 +94,25 @@ class AuthController extends StateNotifier<AuthState> {
           .read(authRepositoryProvider)
           .login(email: email, password: password);
       await _ref.read(secureStorageServiceProvider).saveToken(token);
+      // Save the real user ID for auto-login on next app launch
+      await _ref.read(secureStorageServiceProvider).saveUserId(user.id);
+
       state = state.copyWith(
         isLoading: false,
         isAuthenticated: true,
         user: user,
       );
+
+      // Invalidate and reload wallet providers to get fresh data
+      _ref.invalidate(walletsProvider);
+      _ref.invalidate(dashboardWalletsProvider);
+
       // Load per-user data for transactions after login
       try {
         _ref.read(transactionsProvider.notifier).loadForCurrentUser();
       } catch (e) {
-        // ignore load errors during login
+        debugPrint('Error loading transactions after login: $e');
       }
-      // Persist current userId for per-user storage
-      try {
-        await _ref.read(secureStorageServiceProvider).saveUserId(user.id);
-      } catch (_) {}
-      // Persist current userId for per-user storage
-      try {
-        await _ref.read(secureStorageServiceProvider).saveUserId(user.id);
-      } catch (_) {}
     } catch (e) {
       String errorMsg = 'Đăng nhập thất bại.';
       if (e is DioException) {
@@ -128,11 +148,19 @@ class AuthController extends StateNotifier<AuthState> {
             gender: gender,
           );
       await _ref.read(secureStorageServiceProvider).saveToken(token);
+      // Save the real user ID for auto-login
+      await _ref.read(secureStorageServiceProvider).saveUserId(user.id);
+
       state = state.copyWith(
         isLoading: false,
         isAuthenticated: true,
         user: user,
       );
+
+      // New user will have default wallet created on backend,
+      // invalidate providers to fetch fresh data
+      _ref.invalidate(walletsProvider);
+      _ref.invalidate(dashboardWalletsProvider);
     } catch (e) {
       String errorMsg = 'Đăng ký thất bại.';
       if (e is DioException) {
@@ -157,7 +185,19 @@ class AuthController extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     await _ref.read(secureStorageServiceProvider).clearToken();
+    // Clear the saved user ID to prevent hardcoded access on next app launch
+    try {
+      await _ref.read(secureStorageServiceProvider).clearUserId();
+    } catch (_) {}
+
+    // CRITICAL: Invalidate all wallet providers to clear old cached data
+    _ref.invalidate(walletsProvider);
+    _ref.invalidate(dashboardWalletsProvider);
+
+    // Clear theme
     _ref.read(themeModeProvider.notifier).state = ThemeMode.system;
+
+    // Clear auth state
     state = const AuthState();
   }
 
