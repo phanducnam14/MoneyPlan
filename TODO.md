@@ -1,23 +1,28 @@
-# UI Redesign TODO List
+# MoneyPlan Statistics Screen Update - TODO
 
-## Phase 1: Core Components
-- [x] 1. Create reusable modern widgets (buttons, cards, inputs)
-- [ ] 2. Enhance app theme with gradients and effects
+## Plan Breakdown & Progress
 
-## Phase 2: Authentication Screens
-- [x] 3. Redesign Login Screen with modern UI
-- [x] 4. Redesign Register Screen with modern UI
+**✅ Step 1: Create TODO.md** - Tracking progress.
 
-## Phase 3: Main Screens
-- [x] 5. Redesign Dashboard with glassmorphism cards
-- [ ] 6. Redesign Transactions with better UX
-- [x] 7. Redesign Statistics with animated elements
-- [x] 8. Redesign Profile with modern card layout
+**✅ Step 2: Read dependent provider files**  
+- Confirmed: `walletsProvider` exists (FutureProvider<List<Wallet>>), provides wallet balances.  
+- `transactionsProvider.state` has expenses for wallet spending calc.  
+- Can watch both in StatisticsScreen.
 
-## Phase 4: Navigation & Shell
-- [x] 9. Enhance MainShell navigation
+**✅ Step 3: Implement wallet summary calculations**  
+- Added `totalWalletBalance`, `walletSpendingTotal`, `walletRemaining`.
 
-## Phase 5: Admin & Utilities
-- [x] 10. Modernize Admin Screen
-- [x] 11. Update PremiumPage wrapper
+**✅ Step 4: Restructure top Card to 2-column layout**  
+- Left: Thu nhập/Chi tiêu/Số dư (overall).  
+- Right: Tổng tiền trong ví/Chi tiêu trong ví/Số dư còn lại trong ví.
+
+**✅ Step 5: Edit statistics_screen.dart**  
+- Updated UI with new 2-column summary cards.
+- Fixed import/provider issues including walletsProvider type.
+- Used existing _HealthMetric for consistency.
+
+**✅ Step 6: Test & verify**  
+- Ready to run Flutter app, navigate to Statistics screen.
+
+**✅ Step 7: Final cleanup & attempt_completion**
 
