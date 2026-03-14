@@ -137,7 +137,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
         ),
         const SizedBox(height: 24),
         Text(
-          'Smart Finance',
+          'Tiêu tiền đúng cách',
           style: Theme.of(context).textTheme.displaySmall?.copyWith(
             fontWeight: FontWeight.w800,
             letterSpacing: -1,

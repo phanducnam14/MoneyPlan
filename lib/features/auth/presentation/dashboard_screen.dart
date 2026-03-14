@@ -6,7 +6,6 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/modern_widgets.dart';
 import '../../../shared/widgets/wallet_summary_widget.dart';
-import '../../../shared/widgets/budget_summary_widget.dart';
 import '../../transactions/transaction_controller.dart';
 import 'auth_controller.dart';
 
@@ -54,7 +53,7 @@ class DashboardScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Xin chao!',
+                            'Xin chào bạn !',
                             style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(color: Colors.grey[600]),
                           ),
@@ -125,19 +124,7 @@ class DashboardScreen extends ConsumerWidget {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: WalletSummaryWidget(
-                    onViewAll: () {
-                      // Navigate to wallets screen
-                    },
-                  ),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: BudgetSummaryWidget(
-                    onViewAll: () {
-                      // Navigate to budget screen
-                    },
+                    onViewAll: () {},
                   ),
                 ),
               ),
@@ -332,7 +319,7 @@ class DashboardScreen extends ConsumerWidget {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              '${currencyFormat.format(balance)}d',
+              '${currencyFormat.format(balance)}đ',
               style: const TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w800,
@@ -389,7 +376,7 @@ class DashboardScreen extends ConsumerWidget {
               style: const TextStyle(fontSize: 11, color: Colors.white60),
             ),
             Text(
-              '${value}d',
+              '$value đ',
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -409,7 +396,6 @@ class DashboardScreen extends ConsumerWidget {
     IconData icon,
     Color color,
   ) {
-    // Premium look using GlassCard for consistency
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return GlassCard(
       child: Padding(
@@ -440,7 +426,7 @@ class DashboardScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '$value d',
+                    '$value đ',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
@@ -512,7 +498,8 @@ class DashboardScreen extends ConsumerWidget {
                     .map((entry) {
                       final index = entry.key;
                       final category = entry.value;
-                      final percentage = (category.value / totalExpense * 100);
+                      final percentage =
+                          (category.value / totalExpense * 100);
                       return PieChartSectionData(
                         value: category.value,
                         title: '${percentage.toStringAsFixed(0)}%',
@@ -533,9 +520,11 @@ class DashboardScreen extends ConsumerWidget {
           Wrap(
             spacing: 16,
             runSpacing: 10,
-            children: expenseByCategory.entries.toList().asMap().entries.map((
-              entry,
-            ) {
+            children: expenseByCategory.entries
+                .toList()
+                .asMap()
+                .entries
+                .map((entry) {
               final index = entry.key;
               final category = entry.value;
               return _buildLegendItem(
@@ -584,7 +573,7 @@ class DashboardScreen extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currencyFormat = NumberFormat('#,###');
     final dateFormat = DateFormat('dd MMM');
-    final categoryIcons = {
+    const categoryIcons = {
       'An uong': Icons.restaurant,
       'Nha o': Icons.home,
       'Di chuyen': Icons.directions_car,
@@ -676,28 +665,19 @@ class DashboardScreen extends ConsumerWidget {
             TextButton(
               onPressed: () async {
                 Navigator.pop(context);
-                // Show loading
                 showDialog(
                   context: context,
                   barrierDismissible: false,
                   builder: (context) =>
                       const Center(child: CircularProgressIndicator()),
                 );
-
                 try {
-                  // Call the reset API
                   await ref
                       .read(authControllerProvider.notifier)
                       .resetUserData();
-
-                  // Clear frontend data
                   await ref.read(transactionsProvider.notifier).clearAllData();
-
-                  // Close loading dialog
                   if (context.mounted) {
                     Navigator.pop(context);
-
-                    // Show success message
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Da reset du lieu tai chinh!'),
@@ -707,11 +687,8 @@ class DashboardScreen extends ConsumerWidget {
                     );
                   }
                 } catch (e) {
-                  // Close loading dialog
                   if (context.mounted) {
                     Navigator.pop(context);
-
-                    // Show error message
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('Loi reset du lieu: ${e.toString()}'),
@@ -736,5 +713,3 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 }
-
-
