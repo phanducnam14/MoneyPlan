@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import './domain/transaction_models.dart';
 import '../../storage/per_user_storage.dart';
 import '../auth/presentation/auth_controller.dart';
+import '../wallets/presentation/wallet_screen.dart';
+import '../../core/network/dio_provider.dart';
 
 enum DateFilter { all, today, last7Days, last30Days, thisMonth }
 
@@ -190,30 +192,83 @@ class TransactionsController extends StateNotifier<TransactionsState> {
     );
   }
 
-  void addExpense(Expense expense) {
+  Future<void> addExpense(Expense expense) async {
+    // First, add to local state
     final newList = [expense, ...state.expenses];
     state = state.copyWith(expenses: newList);
-    _persistCurrentUser();
+    await _persistCurrentUser();
+
+    // Then sync with backend if expense is from a wallet
+    if (expense.sourceType == 'wallet' && expense.sourceWalletId != null) {
+      try {
+        final repo = _ref.read(transactionRepositoryProvider);
+        // Send expense to backend via Transaction API
+        await repo.createExpense(
+          walletId: expense.sourceWalletId!,
+          amount: expense.amount,
+          category: expense.category,
+          date: expense.date,
+          note: expense.sourceWalletName,
+        );
+        // Refresh wallets to get updated balance from backend
+        // ignore: unused_result
+        _ref.refresh(walletsProvider);
+      } catch (e) {
+        // Silently handle error to not crash app
+      }
+    }
   }
 
-  void addIncome(Income income) {
+  Future<void> addIncome(Income income) async {
     final newList = [income, ...state.incomes];
     state = state.copyWith(incomes: newList);
-    _persistCurrentUser();
+    await _persistCurrentUser();
+
+    // Sync income with backend
+    try {
+      // Send income to backend via Transaction API
+      // Note: We don't have walletId here, so this needs to be handled differently
+      // For now, just refresh wallets
+      // ignore: unused_result
+      _ref.refresh(walletsProvider);
+    } catch (e) {
+      // Silently handle error
+    }
   }
 
-  void deleteExpense(String id) {
+  Future<void> deleteExpense(String id) async {
+    // Find the expense to get wallet info if needed
+    final expense = state.expenses.firstWhere(
+      (e) => e.id == id,
+      orElse: () => Expense(
+        id: '',
+        amount: 0,
+        category: '',
+        date: DateTime.now(),
+      ),
+    );
+
     state = state.copyWith(
       expenses: state.expenses.where((e) => e.id != id).toList(),
     );
-    _persistCurrentUser();
+    await _persistCurrentUser();
+
+    // Delete from backend if expense was from a wallet
+    if (expense.sourceType == 'wallet' && expense.sourceWalletId != null) {
+      try {
+        // Note: In real app, you would need to store transaction IDs
+        // For now, we'll just refresh wallets to sync        // ignore: unused_result        _ref.refresh(walletsProvider);
+      } catch (e) {
+        // Silently handle error to not crash app
+      }
+    }
   }
 
-  void deleteIncome(String id) {
+  Future<void> deleteIncome(String id) async {
     state = state.copyWith(
       incomes: state.incomes.where((i) => i.id != id).toList(),
     );
-    _persistCurrentUser();
+    await _persistCurrentUser();
   }
 
   void setDateFilter(DateFilter filter) {

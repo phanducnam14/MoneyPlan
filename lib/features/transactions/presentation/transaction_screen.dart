@@ -78,14 +78,41 @@ class TransactionsScreen extends ConsumerWidget {
   static Future<void> _showAddDialogWithWallets(
     BuildContext context,
     TransactionsController controller,
-    List<dynamic> wallets,
+    List<dynamic> walletsList,
   ) async {
+    // Convert wallets to a consistent list format
+    List<Map<String, dynamic>> wallets = [];
+    for (var wallet in walletsList) {
+      if (wallet is Map) {
+        wallets.add(Map<String, dynamic>.from(wallet));
+      } else {
+        // If it's a Wallet object, convert to map
+        wallets.add({
+          '_id': wallet.id ?? '',
+          'name': wallet.name ?? 'Unknown',
+        });
+      }
+    }
+
+    // Helper to extract wallet ID from wallet map
+    String getWalletId(Map<String, dynamic> wallet) {
+      return (wallet['_id'] ?? wallet['id'] ?? '').toString();
+    }
+
+    // Helper to extract wallet name from wallet map
+    String getWalletName(Map<String, dynamic> wallet) {
+      return (wallet['name'] ?? 'Unknown').toString();
+    }
+
+
+
     final amountController = TextEditingController();
     final descController = TextEditingController();
     var isExpense = true;
     var selectedDate = DateTime.now();
-    String? selectedWalletId;
-    String? selectedWalletName;
+    // Initialize to first wallet's ID if available
+    String? selectedWalletId = wallets.isNotEmpty ? getWalletId(wallets.first) : null;
+    String? selectedWalletName = wallets.isNotEmpty ? getWalletName(wallets.first) : null;
     var useWalletAsSource = false;
 
     await showDialog<void>(
@@ -167,8 +194,14 @@ class TransactionsScreen extends ConsumerWidget {
                         onSelectionChanged: (Set<bool> newSelection) {
                           setState(() {
                             useWalletAsSource = newSelection.first;
+                          if (useWalletAsSource && wallets.isNotEmpty) {
+                            // Auto-select first wallet when switching to "Ví"
+                            selectedWalletId = getWalletId(wallets.first);
+                            selectedWalletName = getWalletName(wallets.first);
+                          } else {
                             selectedWalletId = null;
                             selectedWalletName = null;
+                            }
                           });
                         },
                       ),
@@ -180,20 +213,22 @@ class TransactionsScreen extends ConsumerWidget {
                           items: wallets
                               .map(
                                 (wallet) => DropdownMenuItem(
-                                  value: wallet.id.toString(),
-                                  child: Text(wallet.name.toString()),
+                                  value: getWalletId(wallet),
+                                  child: Text(getWalletName(wallet)),
                                 ),
                               )
                               .toList(),
                           onChanged: (value) {
-                            final selected = wallets.firstWhere(
-                              (w) => w.id.toString() == value,
-                              orElse: () => wallets.first,
-                            );
-                            setState(() {
-                              selectedWalletId = value;
-                              selectedWalletName = selected.name.toString();
-                            });
+                            if (value != null && value.isNotEmpty) {
+                              final selected = wallets.firstWhere(
+                                (w) => getWalletId(w) == value,
+                                orElse: () => wallets[0],
+                              );
+                              setState(() {
+                                selectedWalletId = value;
+                                selectedWalletName = getWalletName(selected);
+                              });
+                            }
                           },
                           decoration: InputDecoration(
                             labelText: 'Chọn ví',
@@ -253,7 +288,7 @@ class TransactionsScreen extends ConsumerWidget {
               child: const Text('Hủy'),
             ),
             FilledButton(
-              onPressed: () {
+              onPressed: () async {
                 final amount = double.tryParse(amountController.text) ?? 0;
                 final desc = descController.text.trim();
                 if (amount <= 0 || desc.isEmpty) return;
@@ -269,7 +304,7 @@ class TransactionsScreen extends ConsumerWidget {
                 }
 
                 if (isExpense) {
-                  controller.addExpense(
+                  await controller.addExpense(
                     Expense(
                       id: DateTime.now().millisecondsSinceEpoch.toString(),
                       amount: amount,
@@ -284,7 +319,7 @@ class TransactionsScreen extends ConsumerWidget {
                     ),
                   );
                 } else {
-                  controller.addIncome(
+                  await controller.addIncome(
                     Income(
                       id: DateTime.now()
                           .millisecondsSinceEpoch
@@ -295,7 +330,9 @@ class TransactionsScreen extends ConsumerWidget {
                     ),
                   );
                 }
-                Navigator.pop(context);
+                if (context.mounted) {
+                  Navigator.pop(context);
+                }
               },
               child: const Text('Lưu'),
             ),
@@ -327,7 +364,7 @@ class _TransactionCard extends StatelessWidget {
   final IconData icon;
   final Color color;
   final bool isExpense;
-  final VoidCallback onDelete;
+  final Future<void> Function() onDelete;
   final String sourceType; // 'income' or 'wallet'
   final String? sourceWalletName; // Name of wallet if sourceType is 'wallet'
 
@@ -344,7 +381,9 @@ class _TransactionCard extends StatelessWidget {
     return Dismissible(
       key: Key(title + date.toString()),
       direction: DismissDirection.endToStart,
-      onDismissed: (_) => onDelete(),
+      onDismissed: (_) {
+        onDelete();
+      },
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
@@ -552,7 +591,7 @@ class _ExpenseList extends StatelessWidget {
   final List<Expense> expenses;
   final bool isLoading;
   final Future<void> Function() onRefresh;
-  final void Function(String) onDelete;
+  final Future<void> Function(String) onDelete;
   final Future<void> Function() onLoadMore;
 
   @override
@@ -597,7 +636,7 @@ class _ExpenseList extends StatelessWidget {
             note: expense.note,
             icon: categoryMap[expense.category] ?? Icons.category,
             color: Colors.red,
-            onDelete: () => onDelete(expense.id),
+            onDelete: () async => onDelete(expense.id),
             isExpense: true,
             sourceType: expense.sourceType,
             sourceWalletName: expense.sourceWalletName,
@@ -612,7 +651,7 @@ class _IncomeList extends StatelessWidget {
   const _IncomeList({required this.incomes, required this.onDelete});
 
   final List<Income> incomes;
-  final void Function(String) onDelete;
+  final Future<void> Function(String) onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -649,7 +688,7 @@ class _IncomeList extends StatelessWidget {
           note: income.note,
           icon: sourceMap[income.source] ?? Icons.attach_money,
           color: Colors.green,
-          onDelete: () => onDelete(income.id),
+          onDelete: () async => onDelete(income.id),
           isExpense: false,
         );
       },

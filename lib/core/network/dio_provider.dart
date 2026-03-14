@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config/api_config.dart';
 import '../../features/wallets/data/wallet_repository.dart';
+import '../../features/transactions/data/transaction_repository.dart';
 import '../../features/goals/data/goal_repository.dart';
 import '../../features/recurring/data/recurring_repository.dart';
 import '../../features/categories/data/category_repository.dart';
@@ -46,6 +47,10 @@ final dioProvider = Provider<Dio>((ref) {
 // Repository providers
 final walletRepositoryProvider = Provider<WalletRepository>((ref) {
   return WalletRepository(ref.watch(dioProvider));
+});
+
+final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
+  return TransactionRepository(ref.watch(dioProvider));
 });
 
 final goalRepositoryProvider = Provider<GoalRepository>((ref) {
