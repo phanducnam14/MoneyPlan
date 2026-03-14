@@ -1,5 +1,4 @@
-import 'dart:math';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import './domain/transaction_models.dart';
@@ -34,17 +33,11 @@ extension DateFilterExtension on DateFilter {
       case DateFilter.today:
         return DateTime(now.year, now.month, now.day);
       case DateFilter.last7Days:
-        return DateTime(
-          now.year,
-          now.month,
-          now.day,
-        ).subtract(const Duration(days: 6));
+        return DateTime(now.year, now.month, now.day)
+            .subtract(const Duration(days: 6));
       case DateFilter.last30Days:
-        return DateTime(
-          now.year,
-          now.month,
-          now.day,
-        ).subtract(const Duration(days: 29));
+        return DateTime(now.year, now.month, now.day)
+            .subtract(const Duration(days: 29));
       case DateFilter.thisMonth:
         return DateTime(now.year, now.month, 1);
     }
@@ -97,7 +90,8 @@ class TransactionsState {
 
   double get totalExpense =>
       filteredExpenses.fold(0, (sum, e) => sum + e.amount);
-  double get totalIncome => filteredIncomes.fold(0, (sum, i) => sum + i.amount);
+  double get totalIncome =>
+      filteredIncomes.fold(0, (sum, i) => sum + i.amount);
   double get balance => totalIncome - totalExpense;
 
   TransactionsState copyWith({
@@ -117,92 +111,76 @@ class TransactionsState {
   }
 }
 
+final _currentUserIdProvider = Provider<String?>((ref) {
+  return ref.watch(authControllerProvider).user?.id;
+});
+
 final transactionsProvider =
-    StateNotifierProvider<TransactionsController, TransactionsState>(
-      (ref) => TransactionsController(ref)..seed(),
-    );
+    StateNotifierProvider<TransactionsController, TransactionsState>((ref) {
+  final controller = TransactionsController(ref);
+
+  ref.listen<String?>(_currentUserIdProvider, (previousId, newId) {
+    debugPrint('🔔 userId changed: $previousId → $newId');
+    if (newId != null && newId.isNotEmpty && newId != previousId) {
+      controller.loadForUser(newId);
+    } else if (newId == null && previousId != null) {
+      controller.clearStateOnLogout();
+    }
+  });
+
+  final userId = ref.read(_currentUserIdProvider);
+  debugPrint('🚀 transactionsProvider init, userId=$userId');
+  if (userId != null && userId.isNotEmpty) {
+    controller.loadForUser(userId);
+  }
+
+  return controller;
+});
 
 class TransactionsController extends StateNotifier<TransactionsState> {
   TransactionsController(this._ref) : super(const TransactionsState());
   final Ref _ref;
   final PerUserStorage _storage = PerUserStorage();
 
-  Future<void> seed() async {
-    // Load per-user data if a user is logged in
-    final appUser = _ref.read(authControllerProvider).user;
-    if (appUser == null || appUser.id.isEmpty) {
-      // No user logged in yet; keep empty state for now
-      state = state.copyWith(isLoading: false);
-      return;
-    }
-    final userId = appUser.id;
+  Future<void> loadForUser(String userId) async {
+    debugPrint('🔵 loadForUser: $userId');
     state = state.copyWith(isLoading: true);
-    await Future<void>.delayed(const Duration(milliseconds: 100));
-
     final expenses = await _storage.loadExpenses(userId);
     final incomes = await _storage.loadIncomes(userId);
+    debugPrint('🟢 loaded ${expenses.length} expenses, ${incomes.length} incomes for $userId');
     state = state.copyWith(
       expenses: expenses,
       incomes: incomes,
       isLoading: false,
     );
-  }
-
-  Future<void> _saveAll(String userId) async {
-    await _storage.saveExpenses(userId, state.expenses);
-    await _storage.saveIncomes(userId, state.incomes);
-  }
-
-  Future<void> refreshData() async {
-    await seed();
   }
 
   Future<void> loadForCurrentUser() async {
-    final appUser = _ref.read(authControllerProvider).user;
-    if (appUser == null) return;
-    final userId = appUser.id;
-    final expenses = await _storage.loadExpenses(userId);
-    final incomes = await _storage.loadIncomes(userId);
-    state = state.copyWith(
-      expenses: expenses,
-      incomes: incomes,
-      isLoading: false,
-    );
+    final userId = _ref.read(authControllerProvider).user?.id;
+    debugPrint('🔵 loadForCurrentUser: userId=$userId');
+    if (userId == null || userId.isEmpty) return;
+    await loadForUser(userId);
   }
 
-  Future<void> loadMoreExpenses() async {
-    final random = Random();
-    state = state.copyWith(isLoading: true);
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    final more = List.generate(
-      5,
-      (index) => Expense(
-        id: 'e${state.expenses.length + index}',
-        amount: (80000 + random.nextInt(180000)).toDouble(),
-        category: ['Ăn uống', 'Học tập', 'Khác'][index % 3],
-        date: DateTime.now().subtract(
-          Duration(days: state.expenses.length + index),
-        ),
-      ),
-    );
-    state = state.copyWith(
-      expenses: [...state.expenses, ...more],
-      page: state.page + 1,
-      isLoading: false,
-    );
+  Future<void> refreshData() async {
+    await loadForCurrentUser();
+  }
+
+  Future<void> _saveAll(String userId) async {
+    debugPrint('💾 _saveAll: userId=$userId, expenses=${state.expenses.length}, incomes=${state.incomes.length}');
+    await _storage.saveExpenses(userId, state.expenses);
+    await _storage.saveIncomes(userId, state.incomes);
+    debugPrint('✅ _saveAll done for $userId');
   }
 
   Future<void> addExpense(Expense expense) async {
-    // First, add to local state
-    final newList = [expense, ...state.expenses];
-    state = state.copyWith(expenses: newList);
+    debugPrint('➕ addExpense: ${expense.category} ${expense.amount}');
+    state = state.copyWith(expenses: [expense, ...state.expenses]);
     await _persistCurrentUser();
 
-    // Then sync with backend if expense is from a wallet
     if (expense.sourceType == 'wallet' && expense.sourceWalletId != null) {
       try {
         final repo = _ref.read(transactionRepositoryProvider);
-        // Send expense to backend via Transaction API
         await repo.createExpense(
           walletId: expense.sourceWalletId!,
           amount: expense.amount,
@@ -210,58 +188,23 @@ class TransactionsController extends StateNotifier<TransactionsState> {
           date: expense.date,
           note: expense.sourceWalletName,
         );
-        // Refresh wallets to get updated balance from backend
         // ignore: unused_result
         _ref.refresh(walletsProvider);
-      } catch (e) {
-        // Silently handle error to not crash app
-      }
+      } catch (_) {}
     }
   }
 
   Future<void> addIncome(Income income) async {
-    final newList = [income, ...state.incomes];
-    state = state.copyWith(incomes: newList);
+    debugPrint('➕ addIncome: ${income.source} ${income.amount}');
+    state = state.copyWith(incomes: [income, ...state.incomes]);
     await _persistCurrentUser();
-
-    // Sync income with backend
-    try {
-      // Send income to backend via Transaction API
-      // Note: We don't have walletId here, so this needs to be handled differently
-      // For now, just refresh wallets
-      // ignore: unused_result
-      _ref.refresh(walletsProvider);
-    } catch (e) {
-      // Silently handle error
-    }
   }
 
   Future<void> deleteExpense(String id) async {
-    // Find the expense to get wallet info if needed
-    final expense = state.expenses.firstWhere(
-      (e) => e.id == id,
-      orElse: () => Expense(
-        id: '',
-        amount: 0,
-        category: '',
-        date: DateTime.now(),
-      ),
-    );
-
     state = state.copyWith(
       expenses: state.expenses.where((e) => e.id != id).toList(),
     );
     await _persistCurrentUser();
-
-    // Delete from backend if expense was from a wallet
-    if (expense.sourceType == 'wallet' && expense.sourceWalletId != null) {
-      try {
-        // Note: In real app, you would need to store transaction IDs
-        // For now, we'll just refresh wallets to sync        // ignore: unused_result        _ref.refresh(walletsProvider);
-      } catch (e) {
-        // Silently handle error to not crash app
-      }
-    }
   }
 
   Future<void> deleteIncome(String id) async {
@@ -276,6 +219,7 @@ class TransactionsController extends StateNotifier<TransactionsState> {
   }
 
   Future<void> clearAllData() async {
+    final userId = _ref.read(authControllerProvider).user?.id ?? '';
     state = state.copyWith(
       expenses: [],
       incomes: [],
@@ -283,12 +227,21 @@ class TransactionsController extends StateNotifier<TransactionsState> {
       page: 1,
       dateFilter: DateFilter.all,
     );
-    await _saveAll(_ref.read(authControllerProvider).user?.id ?? '');
+    if (userId.isNotEmpty) await _saveAll(userId);
+  }
+
+  void clearStateOnLogout() {
+    debugPrint('🚪 clearStateOnLogout');
+    state = const TransactionsState();
   }
 
   Future<void> _persistCurrentUser() async {
-    final user = _ref.read(authControllerProvider).user;
-    if (user == null) return;
-    await _saveAll(user.id);
+    final userId = _ref.read(authControllerProvider).user?.id;
+    debugPrint('💾 _persistCurrentUser: userId=$userId');
+    if (userId == null || userId.isEmpty) {
+      debugPrint('⚠️ _persistCurrentUser: userId null, skip save!');
+      return;
+    }
+    await _saveAll(userId);
   }
 }

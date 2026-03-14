@@ -24,7 +24,31 @@ class FinanceApp extends ConsumerWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
-      home: authState.isAuthenticated ? const MainShell() : const LoginScreen(),
+      home: authState.isInitializing
+          ? const _SplashScreen()   // Đang kiểm tra token/load data
+          : authState.isAuthenticated
+              ? const MainShell()   // Đã xác thực + data đã load
+              : const LoginScreen(), // Chưa đăng nhập
+    );
+  }
+}
+
+class _SplashScreen extends StatelessWidget {
+  const _SplashScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Đang tải...', style: TextStyle(fontSize: 14, color: Colors.grey)),
+          ],
+        ),
+      ),
     );
   }
 }

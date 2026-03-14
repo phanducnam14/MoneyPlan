@@ -17,24 +17,28 @@ class AuthState {
     this.isLoading = false,
     this.error,
     this.isAuthenticated = false,
+    this.isInitializing = true, // true khi app mới mở, chờ tryAutoLogin xong
   });
 
   final AppUser? user;
   final bool isLoading;
   final String? error;
   final bool isAuthenticated;
+  final bool isInitializing; // Giữ splash/loading cho đến khi auto-login xong
 
   AuthState copyWith({
     AppUser? user,
     bool? isLoading,
     String? error,
     bool? isAuthenticated,
+    bool? isInitializing,
   }) {
     return AuthState(
       user: user ?? this.user,
       isLoading: isLoading ?? this.isLoading,
       error: error,
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
+      isInitializing: isInitializing ?? this.isInitializing,
     );
   }
 }
@@ -56,34 +60,41 @@ class AuthController extends StateNotifier<AuthState> {
 
   Future<void> tryAutoLogin() async {
     try {
-      // Get token from secure storage
-      final token = await _ref.read(secureStorageServiceProvider).readToken();
-      if (token != null && token.isNotEmpty) {
-        // Get the real user ID from secure storage
-        final userId = await _ref.read(secureStorageServiceProvider).readUserId();
-
-        // Check if we have a valid user ID (not the hardcoded 'cached' value)
-        if (userId != null && userId.isNotEmpty && userId != 'cached') {
-          state = state.copyWith(
-            isAuthenticated: true,
-            user: AppUser(
-              id: userId, // Use REAL user ID from storage
-              name: 'User',
-              email: 'email@user.app',
-              role: 'user',
-            ),
-          );
-          // Reload transactions for the correct user
-          try {
-            _ref.read(transactionsProvider.notifier).loadForCurrentUser();
-          } catch (e) {
-            debugPrint('Error loading transactions on auto-login: $e');
-          }
-        }
+      final token =
+          await _ref.read(secureStorageServiceProvider).readToken();
+      if (token == null || token.isEmpty) {
+        // Không có token — kết thúc khởi tạo, hiện login
+        state = state.copyWith(isInitializing: false);
+        return;
       }
+
+      final userId =
+          await _ref.read(secureStorageServiceProvider).readUserId();
+      if (userId == null || userId.isEmpty || userId == 'cached') {
+        state = state.copyWith(isInitializing: false);
+        return;
+      }
+
+      // Set user trước
+      state = state.copyWith(
+        isAuthenticated: true,
+        user: AppUser(
+          id: userId,
+          name: 'User',
+          email: 'email@user.app',
+          role: 'user',
+        ),
+        isInitializing: false, // chưa xong, vẫn đang load transactions
+      );
+
+      // Sau khi user đã set → load lịch sử giao dịch từ storage
+      await _ref.read(transactionsProvider.notifier).loadForCurrentUser();
+
     } catch (e) {
       debugPrint('Auto-login error: $e');
-      // Continue without auto-login if there's an error
+    } finally {
+      // Dù thành công hay thất bại đều kết thúc initializing
+      state = state.copyWith(isInitializing: false);
     }
   }
 
@@ -93,26 +104,22 @@ class AuthController extends StateNotifier<AuthState> {
       final (token, user) = await _ref
           .read(authRepositoryProvider)
           .login(email: email, password: password);
+
       await _ref.read(secureStorageServiceProvider).saveToken(token);
-      // Save the real user ID for auto-login on next app launch
       await _ref.read(secureStorageServiceProvider).saveUserId(user.id);
 
       state = state.copyWith(
         isLoading: false,
         isAuthenticated: true,
         user: user,
+        isInitializing: false,
       );
 
-      // Invalidate and reload wallet providers to get fresh data
       _ref.invalidate(walletsProvider);
       _ref.invalidate(dashboardWalletsProvider);
 
-      // Load per-user data for transactions after login
-      try {
-        _ref.read(transactionsProvider.notifier).loadForCurrentUser();
-      } catch (e) {
-        debugPrint('Error loading transactions after login: $e');
-      }
+      // Load lịch sử giao dịch của user này từ local storage
+      await _ref.read(transactionsProvider.notifier).loadForCurrentUser();
     } catch (e) {
       String errorMsg = 'Đăng nhập thất bại.';
       if (e is DioException) {
@@ -147,24 +154,27 @@ class AuthController extends StateNotifier<AuthState> {
             dob: dob,
             gender: gender,
           );
+
       await _ref.read(secureStorageServiceProvider).saveToken(token);
-      // Save the real user ID for auto-login
       await _ref.read(secureStorageServiceProvider).saveUserId(user.id);
 
       state = state.copyWith(
         isLoading: false,
         isAuthenticated: true,
         user: user,
+        isInitializing: false,
       );
 
-      // New user will have default wallet created on backend,
-      // invalidate providers to fetch fresh data
       _ref.invalidate(walletsProvider);
       _ref.invalidate(dashboardWalletsProvider);
+
+      // User mới → storage rỗng, load để reset state về []
+      await _ref.read(transactionsProvider.notifier).loadForCurrentUser();
     } catch (e) {
       String errorMsg = 'Đăng ký thất bại.';
       if (e is DioException) {
-        if (e.response?.data is Map && e.response?.data['message'] != null) {
+        if (e.response?.data is Map &&
+            e.response?.data['message'] != null) {
           errorMsg = e.response?.data['message'].toString() ?? errorMsg;
         } else if (e.response?.statusCode == 400) {
           errorMsg =
@@ -184,21 +194,20 @@ class AuthController extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
+    // Xóa state giao dịch trong bộ nhớ (KHÔNG xóa storage — giữ lịch sử)
+    _ref.read(transactionsProvider.notifier).clearStateOnLogout();
+
+    _ref.invalidate(walletsProvider);
+    _ref.invalidate(dashboardWalletsProvider);
+
     await _ref.read(secureStorageServiceProvider).clearToken();
-    // Clear the saved user ID to prevent hardcoded access on next app launch
     try {
       await _ref.read(secureStorageServiceProvider).clearUserId();
     } catch (_) {}
 
-    // CRITICAL: Invalidate all wallet providers to clear old cached data
-    _ref.invalidate(walletsProvider);
-    _ref.invalidate(dashboardWalletsProvider);
-
-    // Clear theme
     _ref.read(themeModeProvider.notifier).state = ThemeMode.system;
 
-    // Clear auth state
-    state = const AuthState();
+    state = const AuthState(isInitializing: false);
   }
 
   Future<void> changePassword({
@@ -231,7 +240,6 @@ class AuthController extends StateNotifier<AuthState> {
       await _ref
           .read(authRepositoryProvider)
           .changeEmail(newEmail: newEmail, password: password);
-      // Update user info with new email
       state = state.copyWith(
         isLoading: false,
         user: state.user?.copyWith(email: newEmail),

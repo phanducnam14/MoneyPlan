@@ -60,7 +60,6 @@ class TransactionsScreen extends ConsumerWidget {
                     isLoading: state.isLoading,
                     onRefresh: controller.refreshData,
                     onDelete: controller.deleteExpense,
-                    onLoadMore: controller.loadMoreExpenses,
                   ),
                   _IncomeList(
                     incomes: state.filteredIncomes,
@@ -80,13 +79,11 @@ class TransactionsScreen extends ConsumerWidget {
     TransactionsController controller,
     List<dynamic> walletsList,
   ) async {
-    // Convert wallets to a consistent list format
     List<Map<String, dynamic>> wallets = [];
     for (var wallet in walletsList) {
       if (wallet is Map) {
         wallets.add(Map<String, dynamic>.from(wallet));
       } else {
-        // If it's a Wallet object, convert to map
         wallets.add({
           '_id': wallet.id ?? '',
           'name': wallet.name ?? 'Unknown',
@@ -94,25 +91,19 @@ class TransactionsScreen extends ConsumerWidget {
       }
     }
 
-    // Helper to extract wallet ID from wallet map
-    String getWalletId(Map<String, dynamic> wallet) {
-      return (wallet['_id'] ?? wallet['id'] ?? '').toString();
-    }
-
-    // Helper to extract wallet name from wallet map
-    String getWalletName(Map<String, dynamic> wallet) {
-      return (wallet['name'] ?? 'Unknown').toString();
-    }
-
-
+    String getWalletId(Map<String, dynamic> wallet) =>
+        (wallet['_id'] ?? wallet['id'] ?? '').toString();
+    String getWalletName(Map<String, dynamic> wallet) =>
+        (wallet['name'] ?? 'Unknown').toString();
 
     final amountController = TextEditingController();
     final descController = TextEditingController();
     var isExpense = true;
     var selectedDate = DateTime.now();
-    // Initialize to first wallet's ID if available
-    String? selectedWalletId = wallets.isNotEmpty ? getWalletId(wallets.first) : null;
-    String? selectedWalletName = wallets.isNotEmpty ? getWalletName(wallets.first) : null;
+    String? selectedWalletId =
+        wallets.isNotEmpty ? getWalletId(wallets.first) : null;
+    String? selectedWalletName =
+        wallets.isNotEmpty ? getWalletName(wallets.first) : null;
     var useWalletAsSource = false;
 
     await showDialog<void>(
@@ -138,16 +129,16 @@ class TransactionsScreen extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     SegmentedButton<bool>(
-                      segments: [
+                      segments: const [
                         ButtonSegment(
                           value: true,
-                          label: const Text('Chi tiêu'),
-                          icon: const Icon(Icons.remove),
+                          label: Text('Chi tiêu'),
+                          icon: Icon(Icons.remove),
                         ),
                         ButtonSegment(
                           value: false,
-                          label: const Text('Thu nhập'),
-                          icon: const Icon(Icons.add),
+                          label: Text('Thu nhập'),
+                          icon: Icon(Icons.add),
                         ),
                       ],
                       selected: {isExpense},
@@ -157,6 +148,7 @@ class TransactionsScreen extends ConsumerWidget {
                           descController.clear();
                           selectedWalletId = null;
                           selectedWalletName = null;
+                          useWalletAsSource = false;
                         });
                       },
                     ),
@@ -175,38 +167,35 @@ class TransactionsScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    // Show wallet/income source selector only for expenses
                     if (isExpense) ...[
                       SegmentedButton<bool>(
-                        segments: [
+                        segments: const [
                           ButtonSegment(
                             value: false,
-                            label: const Text('Thu nhập'),
-                            icon: const Icon(Icons.account_balance),
+                            label: Text('Thu nhập'),
+                            icon: Icon(Icons.account_balance),
                           ),
                           ButtonSegment(
                             value: true,
-                            label: const Text('Ví'),
-                            icon: const Icon(Icons.wallet),
+                            label: Text('Ví'),
+                            icon: Icon(Icons.wallet),
                           ),
                         ],
                         selected: {useWalletAsSource},
                         onSelectionChanged: (Set<bool> newSelection) {
                           setState(() {
                             useWalletAsSource = newSelection.first;
-                          if (useWalletAsSource && wallets.isNotEmpty) {
-                            // Auto-select first wallet when switching to "Ví"
-                            selectedWalletId = getWalletId(wallets.first);
-                            selectedWalletName = getWalletName(wallets.first);
-                          } else {
-                            selectedWalletId = null;
-                            selectedWalletName = null;
+                            if (useWalletAsSource && wallets.isNotEmpty) {
+                              selectedWalletId = getWalletId(wallets.first);
+                              selectedWalletName = getWalletName(wallets.first);
+                            } else {
+                              selectedWalletId = null;
+                              selectedWalletName = null;
                             }
                           });
                         },
                       ),
                       const SizedBox(height: 12),
-                      // Wallet picker if "Ví" is selected
                       if (useWalletAsSource && wallets.isNotEmpty)
                         DropdownButtonFormField<String>(
                           initialValue: selectedWalletId,
@@ -243,8 +232,10 @@ class TransactionsScreen extends ConsumerWidget {
                     DropdownButtonFormField<String>(
                       items: options
                           .map(
-                            (opt) =>
-                                DropdownMenuItem(value: opt, child: Text(opt)),
+                            (opt) => DropdownMenuItem(
+                              value: opt,
+                              child: Text(opt),
+                            ),
                           )
                           .toList(),
                       onChanged: (value) => descController.text = value ?? '',
@@ -293,10 +284,7 @@ class TransactionsScreen extends ConsumerWidget {
                 final desc = descController.text.trim();
                 if (amount <= 0 || desc.isEmpty) return;
 
-                // For expenses with wallet source, check wallet is selected
-                if (isExpense &&
-                    useWalletAsSource &&
-                    selectedWalletId == null) {
+                if (isExpense && useWalletAsSource && selectedWalletId == null) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Vui lòng chọn ví')),
                   );
@@ -310,8 +298,7 @@ class TransactionsScreen extends ConsumerWidget {
                       amount: amount,
                       category: desc,
                       date: selectedDate,
-                      sourceType:
-                          useWalletAsSource ? 'wallet' : 'income',
+                      sourceType: useWalletAsSource ? 'wallet' : 'income',
                       sourceWalletId:
                           useWalletAsSource ? selectedWalletId : null,
                       sourceWalletName:
@@ -321,18 +308,14 @@ class TransactionsScreen extends ConsumerWidget {
                 } else {
                   await controller.addIncome(
                     Income(
-                      id: DateTime.now()
-                          .millisecondsSinceEpoch
-                          .toString(),
+                      id: DateTime.now().millisecondsSinceEpoch.toString(),
                       amount: amount,
                       source: desc,
                       date: selectedDate,
                     ),
                   );
                 }
-                if (context.mounted) {
-                  Navigator.pop(context);
-                }
+                if (context.mounted) Navigator.pop(context);
               },
               child: const Text('Lưu'),
             ),
@@ -365,25 +348,20 @@ class _TransactionCard extends StatelessWidget {
   final Color color;
   final bool isExpense;
   final Future<void> Function() onDelete;
-  final String sourceType; // 'income' or 'wallet'
-  final String? sourceWalletName; // Name of wallet if sourceType is 'wallet'
+  final String sourceType;
+  final String? sourceWalletName;
 
   @override
   Widget build(BuildContext context) {
     final currencyFormat = NumberFormat('#,###');
     final dateFormat = DateFormat('dd/MM/yyyy');
-
-    // Determine source label
-    final sourceLabel = sourceType == 'wallet'
-        ? 'Ví: $sourceWalletName'
-        : 'Thu nhập';
+    final sourceLabel =
+        sourceType == 'wallet' ? 'Ví: $sourceWalletName' : 'Thu nhập';
 
     return Dismissible(
       key: Key(title + date.toString()),
       direction: DismissDirection.endToStart,
-      onDismissed: (_) {
-        onDelete();
-      },
+      onDismissed: (_) => onDelete(),
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
@@ -418,20 +396,19 @@ class _TransactionCard extends StatelessWidget {
                       Text(
                         title,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                              fontWeight: FontWeight.bold,
+                            ),
                       ),
                       const SizedBox(height: 4),
-                      // Show source for expenses
                       if (isExpense)
                         Text(
                           'Từ: $sourceLabel',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                  ),
                         ),
-                      // Show date
                       Text(
                         dateFormat.format(date),
                         style: Theme.of(context).textTheme.bodySmall,
@@ -532,16 +509,17 @@ class _SummaryItem extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           label,
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: Colors.grey[700]),
+          style: Theme.of(context)
+              .textTheme
+              .bodySmall
+              ?.copyWith(color: Colors.grey[700]),
         ),
         Text(
           value,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
         ),
       ],
     );
@@ -585,17 +563,18 @@ class _ExpenseList extends StatelessWidget {
     required this.isLoading,
     required this.onRefresh,
     required this.onDelete,
-    required this.onLoadMore,
   });
 
   final List<Expense> expenses;
   final bool isLoading;
   final Future<void> Function() onRefresh;
   final Future<void> Function(String) onDelete;
-  final Future<void> Function() onLoadMore;
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
     if (expenses.isEmpty) {
       return Center(
         child: Column(
@@ -615,13 +594,10 @@ class _ExpenseList extends StatelessWidget {
       onRefresh: onRefresh,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: expenses.length + (isLoading ? 1 : 0),
+        itemCount: expenses.length,
         itemBuilder: (context, index) {
-          if (index == expenses.length) {
-            return const Center(child: CircularProgressIndicator());
-          }
           final expense = expenses[index];
-          final categoryMap = {
+          const categoryMap = {
             'Ăn uống': Icons.restaurant,
             'Nhà ở': Icons.home,
             'Di chuyển': Icons.directions_car,
@@ -675,7 +651,7 @@ class _IncomeList extends StatelessWidget {
       itemCount: incomes.length,
       itemBuilder: (context, index) {
         final income = incomes[index];
-        final sourceMap = {
+        const sourceMap = {
           'Lương': Icons.work,
           'Freelance': Icons.laptop,
           'Đầu tư': Icons.trending_up,
@@ -695,4 +671,3 @@ class _IncomeList extends StatelessWidget {
     );
   }
 }
-
